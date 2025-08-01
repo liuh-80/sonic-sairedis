@@ -37,10 +37,8 @@ mkdir -p /var/log/sai_failure_dump/
 # CMD_ARGS+=" -l"
 
 # Set synchronous mode if it is enabled in CONFIG_DB
-SYNC_MODE=$(echo $SYNCD_VARS | jq -r '.synchronous_mode')
-if [ "$SYNC_MODE" == "enable" ]; then
-    CMD_ARGS+=" -s"
-fi
+# TEST: enable ZMQ between orchagent and syncd for performance test
+CMD_ARGS+=" -z zmq_sync -x /usr/share/sonic/hwsku/context_config.json"
 
 SUPPORTING_BULK_COUNTER_GROUPS=$(echo $SYNCD_VARS | jq -r '.supporting_bulk_counter_groups')
 if [ "$SUPPORTING_BULK_COUNTER_GROUPS" != "" ]; then
