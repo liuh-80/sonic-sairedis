@@ -361,8 +361,15 @@ namespace sairedis
                     _In_ const std::string& key,
                     _In_ std::shared_ptr<SaiOptions> options);
 
+            void resetApiDuration();
+
+            long int getApiDuration();
+
         private:
 
             std::map<std::string, std::shared_ptr<SaiOptions>> m_optionsMap;
+
+        protected:
+            long int m_api_duration;
     };
 }

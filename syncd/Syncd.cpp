@@ -37,6 +37,7 @@
 
 #include <iterator>
 #include <algorithm>
+#include <chrono>
 
 #define DEF_SAI_WARM_BOOT_DATA_FILE "/var/warmboot/sai-warmboot.bin"
 #define SAI_FAILURE_DUMP_SCRIPT "/usr/bin/sai_failure_dump.sh"
@@ -329,9 +330,13 @@ void Syncd::processEvent(
     SWSS_LOG_ENTER();
 
     std::lock_guard<std::mutex> lock(m_mutex);
+    auto processEvent_start = std::chrono::high_resolution_clock::now();
+    int processEvent_count = 0;
+    m_vendorSai->resetApiDuration();
 
     do
     {
+        processEvent_count++;
         swss::KeyOpFieldsValuesTuple kco;
 
         /*
@@ -345,6 +350,10 @@ void Syncd::processEvent(
         processSingleEvent(kco);
     }
     while (!consumer.empty());
+
+    auto sai_api_duration = m_vendorSai->getApiDuration();
+    auto processEvent_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - processEvent_start);
+    SWSS_LOG_NOTICE("processEvent_duration count: %d in ms: %ld sai_api_duration in ms: %ld\n", processEvent_count, processEvent_duration.count(), sai_api_duration);
 }
 
 sai_status_t Syncd::processSingleEvent(

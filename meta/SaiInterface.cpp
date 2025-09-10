@@ -431,3 +431,13 @@ void SaiInterface::setOptions(
 
     m_optionsMap[key] = options;
 }
+
+void SaiInterface::resetApiDuration()
+{
+    m_api_duration = 0;
+}
+
+long int SaiInterface::getApiDuration()
+{
+    return m_api_duration;
+}

@@ -7,6 +7,7 @@
 
 #include <cinttypes>
 #include <cstring>
+#include <chrono>
 
 using namespace syncd;
 
@@ -469,6 +470,7 @@ sai_status_t VendorSai::bulkCreate(
         _Out_ sai_object_id_t *object_id,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -550,22 +552,27 @@ sai_status_t VendorSai::bulkCreate(
 
         default:
             SWSS_LOG_ERROR("not implemented %s, FIXME", sai_serialize_object_type(object_type).c_str());
+            m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
             return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     if (!ptr)
     {
         SWSS_LOG_INFO("create bulk not supported from SAI, object_type = %s",  sai_serialize_object_type(object_type).c_str());
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return ptr(switch_id,
+    auto status = ptr(switch_id,
             object_count,
             attr_count,
             attr_list,
             mode,
             object_id,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -575,6 +582,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkRemove_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -653,16 +661,21 @@ sai_status_t VendorSai::bulkRemove(
 
         default:
             SWSS_LOG_ERROR("not implemented %s, FIXME", sai_serialize_object_type(object_type).c_str());
+            m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkRemove_start).count();
             return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     if (!ptr)
     {
         SWSS_LOG_INFO("remove bulk not supported from SAI, object_type = %s",  sai_serialize_object_type(object_type).c_str());
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkRemove_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return ptr(object_count, object_id, mode, object_statuses);
+    auto status = ptr(object_count, object_id, mode, object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkRemove_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -673,6 +686,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkSet_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -695,20 +709,25 @@ sai_status_t VendorSai::bulkSet(
 
         default:
             SWSS_LOG_ERROR("not implemented %s, FIXME", sai_serialize_object_type(object_type).c_str());
+            m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkSet_start).count();
             return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     if (!ptr)
     {
         SWSS_LOG_INFO("create bulk not supported from SAI, object_type = %s",  sai_serialize_object_type(object_type).c_str());
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkSet_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return ptr(object_count,
+    auto status = ptr(object_count,
             object_id,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkSet_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkGet(
@@ -720,6 +739,7 @@ sai_status_t VendorSai::bulkGet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkGet_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -734,21 +754,26 @@ sai_status_t VendorSai::bulkGet(
 
         default:
             SWSS_LOG_ERROR("not implemented %s, FIXME", sai_serialize_object_type(object_type).c_str());
+            m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkGet_start).count();
             return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     if (!ptr)
     {
         SWSS_LOG_INFO("get bulk not supported in SAI, object_type = %s",  sai_serialize_object_type(object_type).c_str());
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkGet_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return ptr(object_count,
+    auto status = ptr(object_count,
             object_id,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkGet_start).count();
+    return status;
 }
 
 // BULK GET
@@ -782,6 +807,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -789,16 +815,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.route_api->create_route_entries)
     {
         SWSS_LOG_INFO("create_route_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.route_api->create_route_entries(
+    auto status = m_apis.route_api->create_route_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -809,6 +839,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -816,16 +847,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.fdb_api->create_fdb_entries)
     {
         SWSS_LOG_INFO("create_fdb_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.fdb_api->create_fdb_entries(
+    auto status = m_apis.fdb_api->create_fdb_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -836,6 +871,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -843,16 +879,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.mpls_api->create_inseg_entries)
     {
         SWSS_LOG_INFO("create_inseg_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.mpls_api->create_inseg_entries(
+    auto status =  m_apis.mpls_api->create_inseg_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -863,6 +903,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -870,16 +911,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.nat_api->create_nat_entries)
     {
         SWSS_LOG_INFO("create_nat_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.nat_api->create_nat_entries(
+    auto status =   m_apis.nat_api->create_nat_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -890,6 +935,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -897,16 +943,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.srv6_api->create_my_sid_entries)
     {
         SWSS_LOG_INFO("create_my_sid_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.srv6_api->create_my_sid_entries(
+    auto status =   m_apis.srv6_api->create_my_sid_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -917,6 +967,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -924,16 +975,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.neighbor_api->create_neighbor_entries)
     {
         SWSS_LOG_INFO("create_neighbor_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.neighbor_api->create_neighbor_entries(
+    auto status =   m_apis.neighbor_api->create_neighbor_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -944,6 +999,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -951,16 +1007,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_direction_lookup_api->create_direction_lookup_entries)
     {
         SWSS_LOG_INFO("create_direction_lookup_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_direction_lookup_api->create_direction_lookup_entries(
+    auto status = m_apis.dash_direction_lookup_api->create_direction_lookup_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -971,6 +1031,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -978,16 +1039,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_eni_api->create_eni_ether_address_map_entries)
     {
         SWSS_LOG_INFO("create_eni_ether_address_map_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_eni_api->create_eni_ether_address_map_entries(
+    auto status = m_apis.dash_eni_api->create_eni_ether_address_map_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -998,6 +1063,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1005,16 +1071,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_vip_api->create_vip_entries)
     {
         SWSS_LOG_INFO("create_vip_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_vip_api->create_vip_entries(
+    auto status = m_apis.dash_vip_api->create_vip_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1025,6 +1095,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1032,16 +1103,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_inbound_routing_api->create_inbound_routing_entries)
     {
         SWSS_LOG_INFO("create_inbound_routing_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_inbound_routing_api->create_inbound_routing_entries(
+    auto status = m_apis.dash_inbound_routing_api->create_inbound_routing_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1052,6 +1127,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1059,16 +1135,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_pa_validation_api->create_pa_validation_entries)
     {
         SWSS_LOG_INFO("create_pa_validation_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_pa_validation_api->create_pa_validation_entries(
+    auto status = m_apis.dash_pa_validation_api->create_pa_validation_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1079,6 +1159,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1086,16 +1167,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_outbound_routing_api->create_outbound_routing_entries)
     {
         SWSS_LOG_INFO("create_outbound_routing_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_routing_api->create_outbound_routing_entries(
+    auto status = m_apis.dash_outbound_routing_api->create_outbound_routing_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1106,6 +1191,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1113,16 +1199,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_outbound_ca_to_pa_api->create_outbound_ca_to_pa_entries)
     {
         SWSS_LOG_INFO("create_outbound_ca_to_pa_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_ca_to_pa_api->create_outbound_ca_to_pa_entries(
+    auto status = m_apis.dash_outbound_ca_to_pa_api->create_outbound_ca_to_pa_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1133,6 +1223,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1140,16 +1231,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_flow_api->create_flow_entries)
     {
         SWSS_LOG_INFO("create_flow_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_flow_api->create_flow_entries(
+    auto status = m_apis.dash_flow_api->create_flow_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1160,6 +1255,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1167,16 +1263,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_meter_api->create_meter_bucket_entries)
     {
         SWSS_LOG_INFO("create_meter_bucket_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_meter_api->create_meter_bucket_entries(
+    auto status = m_apis.dash_meter_api->create_meter_bucket_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1187,6 +1287,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1194,16 +1295,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.prefix_compression_api->create_prefix_compression_entries)
     {
         SWSS_LOG_INFO("create_prefix_compression_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.prefix_compression_api->create_prefix_compression_entries(
+    auto status = m_apis.prefix_compression_api->create_prefix_compression_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1214,6 +1319,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1221,16 +1327,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_outbound_port_map_api->create_outbound_port_map_port_range_entries)
     {
         SWSS_LOG_INFO("create_outbound_port_map_port_range_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_port_map_api->create_outbound_port_map_port_range_entries(
+    auto status = m_apis.dash_outbound_port_map_api->create_outbound_port_map_port_range_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1241,6 +1351,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1248,16 +1359,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_trusted_vni_api->create_global_trusted_vni_entries)
     {
         SWSS_LOG_INFO("create_global_trusted_vni_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_trusted_vni_api->create_global_trusted_vni_entries(
+    auto status = m_apis.dash_trusted_vni_api->create_global_trusted_vni_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkCreate(
@@ -1268,6 +1383,7 @@ sai_status_t VendorSai::bulkCreate(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1275,16 +1391,20 @@ sai_status_t VendorSai::bulkCreate(
     if (!m_apis.dash_trusted_vni_api->create_eni_trusted_vni_entries)
     {
         SWSS_LOG_INFO("create_eni_trusted_vni_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_trusted_vni_api->create_eni_trusted_vni_entries(
+    auto status = m_apis.dash_trusted_vni_api->create_eni_trusted_vni_entries(
             object_count,
             entries,
             attr_count,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 // BULK REMOVE
@@ -1295,6 +1415,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1302,14 +1423,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.route_api->remove_route_entries)
     {
         SWSS_LOG_INFO("remove_route_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.route_api->remove_route_entries(
+    auto status = m_apis.route_api->remove_route_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 
@@ -1319,6 +1444,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1326,14 +1452,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.fdb_api->remove_fdb_entries)
     {
         SWSS_LOG_INFO("remove_fdb_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.fdb_api->remove_fdb_entries(
+    auto status = m_apis.fdb_api->remove_fdb_entries(
             object_count,
             entries,
             mode,
-            object_statuses);;
+            object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1342,6 +1472,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1349,14 +1480,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.mpls_api->remove_inseg_entries)
     {
         SWSS_LOG_INFO("remove_inseg_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.mpls_api->remove_inseg_entries(
+    auto status = m_apis.mpls_api->remove_inseg_entries(
             object_count,
             entries,
             mode,
-            object_statuses);;
+            object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1365,6 +1500,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1372,14 +1508,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.nat_api->remove_nat_entries)
     {
         SWSS_LOG_INFO("remove_nat_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.nat_api->remove_nat_entries(
+    auto status = m_apis.nat_api->remove_nat_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1388,6 +1528,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1395,14 +1536,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.srv6_api->remove_my_sid_entries)
     {
         SWSS_LOG_INFO("remove_my_sid_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.srv6_api->remove_my_sid_entries(
+    auto status = m_apis.srv6_api->remove_my_sid_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1411,6 +1556,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1418,14 +1564,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.neighbor_api->remove_neighbor_entries)
     {
         SWSS_LOG_INFO("remove_neighbor_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.neighbor_api->remove_neighbor_entries(
+    auto status = m_apis.neighbor_api->remove_neighbor_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1434,6 +1584,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1441,14 +1592,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_direction_lookup_api->remove_direction_lookup_entries)
     {
         SWSS_LOG_INFO("remove_direction_lookup_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_direction_lookup_api->remove_direction_lookup_entries(
+    auto status = m_apis.dash_direction_lookup_api->remove_direction_lookup_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1457,6 +1612,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1464,14 +1620,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_eni_api->remove_eni_ether_address_map_entries)
     {
         SWSS_LOG_INFO("remove_eni_ether_address_map_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_eni_api->remove_eni_ether_address_map_entries(
+    auto status = m_apis.dash_eni_api->remove_eni_ether_address_map_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1480,6 +1640,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1487,14 +1648,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_vip_api->remove_vip_entries)
     {
         SWSS_LOG_INFO("remove_vip_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_vip_api->remove_vip_entries(
+    auto status = m_apis.dash_vip_api->remove_vip_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1503,6 +1668,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1510,14 +1676,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_inbound_routing_api->remove_inbound_routing_entries)
     {
         SWSS_LOG_INFO("remove_inbound_routing_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_inbound_routing_api->remove_inbound_routing_entries(
+    auto status = m_apis.dash_inbound_routing_api->remove_inbound_routing_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1526,6 +1696,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1533,14 +1704,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_pa_validation_api->remove_pa_validation_entries)
     {
         SWSS_LOG_INFO("remove_pa_validation_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_pa_validation_api->remove_pa_validation_entries(
+    auto status = m_apis.dash_pa_validation_api->remove_pa_validation_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1549,6 +1724,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1556,14 +1732,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_outbound_routing_api->remove_outbound_routing_entries)
     {
         SWSS_LOG_INFO("remove_outbound_routing_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_routing_api->remove_outbound_routing_entries(
+    auto status = m_apis.dash_outbound_routing_api->remove_outbound_routing_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1572,6 +1752,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1579,14 +1760,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_outbound_ca_to_pa_api->remove_outbound_ca_to_pa_entries)
     {
         SWSS_LOG_INFO("remove_outbound_ca_to_pa_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_ca_to_pa_api->remove_outbound_ca_to_pa_entries(
+    auto status = m_apis.dash_outbound_ca_to_pa_api->remove_outbound_ca_to_pa_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1595,6 +1780,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1602,14 +1788,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_flow_api->remove_flow_entries)
     {
         SWSS_LOG_INFO("remove_flow_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_flow_api->remove_flow_entries(
+    auto status = m_apis.dash_flow_api->remove_flow_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1618,6 +1808,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1625,14 +1816,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_meter_api->remove_meter_bucket_entries)
     {
         SWSS_LOG_INFO("remove_meter_bucket_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_meter_api->remove_meter_bucket_entries(
+    auto status = m_apis.dash_meter_api->remove_meter_bucket_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1641,6 +1836,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1648,14 +1844,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.prefix_compression_api->remove_prefix_compression_entries)
     {
         SWSS_LOG_INFO("remove_prefix_compression_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.prefix_compression_api->remove_prefix_compression_entries(
+    auto status = m_apis.prefix_compression_api->remove_prefix_compression_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1664,6 +1864,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1671,14 +1872,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_outbound_port_map_api->remove_outbound_port_map_port_range_entries)
     {
         SWSS_LOG_INFO("remove_outbound_port_map_port_range_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_outbound_port_map_api->remove_outbound_port_map_port_range_entries(
+    auto status = m_apis.dash_outbound_port_map_api->remove_outbound_port_map_port_range_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1687,6 +1892,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1694,14 +1900,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_trusted_vni_api->remove_global_trusted_vni_entries)
     {
         SWSS_LOG_INFO("remove_global_trusted_vni_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_trusted_vni_api->remove_global_trusted_vni_entries(
+    auto status = m_apis.dash_trusted_vni_api->remove_global_trusted_vni_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkRemove(
@@ -1710,6 +1920,7 @@ sai_status_t VendorSai::bulkRemove(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1717,14 +1928,18 @@ sai_status_t VendorSai::bulkRemove(
     if (!m_apis.dash_trusted_vni_api->remove_eni_trusted_vni_entries)
     {
         SWSS_LOG_INFO("remove_eni_trusted_vni_entries is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.dash_trusted_vni_api->remove_eni_trusted_vni_entries(
+    auto status = m_apis.dash_trusted_vni_api->remove_eni_trusted_vni_entries(
             object_count,
             entries,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 // BULK SET
@@ -1736,6 +1951,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1743,15 +1959,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.route_api->set_route_entries_attribute)
     {
         SWSS_LOG_INFO("set_route_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.route_api->set_route_entries_attribute(
+    auto status = m_apis.route_api->set_route_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -1761,6 +1981,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1768,15 +1989,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.fdb_api->set_fdb_entries_attribute)
     {
         SWSS_LOG_INFO("set_fdb_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.fdb_api->set_fdb_entries_attribute(
+    auto status = m_apis.fdb_api->set_fdb_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
-            object_statuses);;
+            object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -1786,6 +2011,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1793,15 +2019,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.mpls_api->set_inseg_entries_attribute)
     {
         SWSS_LOG_INFO("set_inseg_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.mpls_api->set_inseg_entries_attribute(
+    auto status = m_apis.mpls_api->set_inseg_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
-            object_statuses);;
+            object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -1811,6 +2041,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1818,15 +2049,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.nat_api->set_nat_entries_attribute)
     {
         SWSS_LOG_INFO("set_nat_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.nat_api->set_nat_entries_attribute(
+    auto status = m_apis.nat_api->set_nat_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -1836,6 +2071,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1843,15 +2079,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.srv6_api->set_my_sid_entries_attribute)
     {
         SWSS_LOG_INFO("set_my_sid_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.srv6_api->set_my_sid_entries_attribute(
+    auto status = m_apis.srv6_api->set_my_sid_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -1861,6 +2101,7 @@ sai_status_t VendorSai::bulkSet(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
@@ -1868,15 +2109,19 @@ sai_status_t VendorSai::bulkSet(
     if (!m_apis.neighbor_api->set_neighbor_entries_attribute)
     {
         SWSS_LOG_INFO("set_neighbor_entries_attribute is not supported");
+        m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    return m_apis.neighbor_api->set_neighbor_entries_attribute(
+    auto status = m_apis.neighbor_api->set_neighbor_entries_attribute(
             object_count,
             entries,
             attr_list,
             mode,
             object_statuses);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::bulkSet(
@@ -2068,11 +2313,15 @@ sai_status_t VendorSai::flushFdbEntries(
         _In_ uint32_t attr_count,
         _In_ const sai_attribute_t *attr_list)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_apis.fdb_api->flush_fdb_entries(switch_id, attr_count, attr_list);
+    auto status = m_apis.fdb_api->flush_fdb_entries(switch_id, attr_count, attr_list);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::switchMdioRead(
@@ -2082,11 +2331,15 @@ sai_status_t VendorSai::switchMdioRead(
         _In_ uint32_t number_of_registers,
         _Out_ uint32_t *reg_val)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_apis.switch_api->switch_mdio_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::switchMdioWrite(
@@ -2096,11 +2349,15 @@ sai_status_t VendorSai::switchMdioWrite(
         _In_ uint32_t number_of_registers,
         _In_ const uint32_t *reg_val)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_apis.switch_api->switch_mdio_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::switchMdioCl22Read(
@@ -2110,15 +2367,19 @@ sai_status_t VendorSai::switchMdioCl22Read(
         _In_ uint32_t number_of_registers,
         _Out_ uint32_t *reg_val)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
 #if (SAI_API_VERSION >= SAI_VERSION(1, 11, 0))
-    return m_apis.switch_api->switch_mdio_cl22_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_cl22_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
 #else
-    return m_apis.switch_api->switch_mdio_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_read(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
 #endif
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::switchMdioCl22Write(
@@ -2128,15 +2389,19 @@ sai_status_t VendorSai::switchMdioCl22Write(
         _In_ uint32_t number_of_registers,
         _In_ const uint32_t *reg_val)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
 #if (SAI_API_VERSION >= SAI_VERSION(1, 11, 0))
-    return m_apis.switch_api->switch_mdio_cl22_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_cl22_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
 #else
-    return m_apis.switch_api->switch_mdio_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
+    auto status = m_apis.switch_api->switch_mdio_write(switch_id, device_addr, start_reg_addr, number_of_registers, reg_val);
 #endif
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 // SAI API
@@ -2148,16 +2413,20 @@ sai_status_t VendorSai::objectTypeGetAvailability(
         _In_ const sai_attribute_t *attrList,
         _Out_ uint64_t *count)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_globalApis.object_type_get_availability(
+    auto status = m_globalApis.object_type_get_availability(
             switchId,
             objectType,
             attrCount,
             attrList,
             count);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::queryAttributeCapability(
@@ -2166,15 +2435,19 @@ sai_status_t VendorSai::queryAttributeCapability(
         _In_ sai_attr_id_t attrId,
         _Out_ sai_attr_capability_t *capability)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_globalApis.query_attribute_capability(
+    auto status = m_globalApis.query_attribute_capability(
             switchId,
             objectType,
             attrId,
             capability);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::queryAttributeEnumValuesCapability(
@@ -2183,20 +2456,25 @@ sai_status_t VendorSai::queryAttributeEnumValuesCapability(
         _In_ sai_attr_id_t attrId,
         _Inout_ sai_s32_list_t *enum_values_capability)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     MUTEX();
     SWSS_LOG_ENTER();
     VENDOR_CHECK_API_INITIALIZED();
 
-    return m_globalApis.query_attribute_enum_values_capability(
+    auto status = m_globalApis.query_attribute_enum_values_capability(
             switchId,
             objectType,
             attrId,
             enum_values_capability);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_object_type_t VendorSai::objectTypeQuery(
         _In_ sai_object_id_t objectId)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     SWSS_LOG_ENTER();
 
     if (!m_apiInitialized)
@@ -2206,12 +2484,16 @@ sai_object_type_t VendorSai::objectTypeQuery(
         return SAI_OBJECT_TYPE_NULL;
     }
 
-    return m_globalApis.object_type_query(objectId);
+    auto status = m_globalApis.object_type_query(objectId);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_object_id_t VendorSai::switchIdQuery(
         _In_ sai_object_id_t objectId)
 {
+    auto bulkCreate_start = std::chrono::high_resolution_clock::now();
     SWSS_LOG_ENTER();
 
     if (!m_apiInitialized)
@@ -2221,7 +2503,10 @@ sai_object_id_t VendorSai::switchIdQuery(
         return SAI_NULL_OBJECT_ID;
     }
 
-    return m_globalApis.switch_id_query(objectId);
+    auto status = m_globalApis.switch_id_query(objectId);
+
+    m_api_duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - bulkCreate_start).count();
+    return status;
 }
 
 sai_status_t VendorSai::logSet(
