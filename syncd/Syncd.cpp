@@ -64,7 +64,8 @@ Syncd::Syncd(
     m_vendorSai(vendorSai),
     m_veryFirstRun(false),
     m_enableSyncMode(false),
-    m_timerWatchdog(cmd->m_watchdogWarnTimeSpan * WD_DELAY_FACTOR)
+    m_timerWatchdog(cmd->m_watchdogWarnTimeSpan * WD_DELAY_FACTOR),
+    m_bulkCreateRouteTest(false)
 {
     SWSS_LOG_ENTER();
 
@@ -234,13 +235,18 @@ Syncd::Syncd(
 
     m_breakConfig = BreakConfigParser::parseBreakConfig(m_commandLineOptions->m_breakConfig);
 
+    m_routeCreateThreadRun = true;
+    m_routeCreateThread = std::make_shared<std::thread>(&Syncd::batchCreateThread, this);
+
+    m_routeCreateFinishThreadRun = true;
+    m_routeCreateFinishThread = std::make_shared<std::thread>(&Syncd::batchCreateFinishThread, this);
     SWSS_LOG_NOTICE("syncd started");
 }
 
 Syncd::~Syncd()
 {
     SWSS_LOG_ENTER();
-
+    m_routeCreateThreadRun = false;
     // empty
 }
 
@@ -328,15 +334,13 @@ void Syncd::processEvent(
         _In_ sairedis::SelectableChannel& consumer)
 {
     SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processEvent start\n");
 
     std::lock_guard<std::mutex> lock(m_mutex);
     auto processEvent_start = std::chrono::high_resolution_clock::now();
-    int processEvent_count = 0;
-    m_vendorSai->resetApiDuration();
 
     do
     {
-        processEvent_count++;
         swss::KeyOpFieldsValuesTuple kco;
 
         /*
@@ -345,21 +349,20 @@ void Syncd::processEvent(
          * data to redis db.
          */
 
+        SWSS_LOG_ERROR("[Hua] syncd processEvent\n");
+        m_consumer_pop_start_timestamp = std::chrono::high_resolution_clock::now();
         consumer.pop(kco, isInitViewMode());
-
+        m_consumer_pop_end_timestamp = std::chrono::high_resolution_clock::now();
         processSingleEvent(kco);
     }
     while (!consumer.empty());
-
-    auto sai_api_duration = m_vendorSai->getApiDuration();
-    auto processEvent_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - processEvent_start);
-    SWSS_LOG_NOTICE("processEvent_duration count: %d in ms: %ld sai_api_duration in ms: %ld\n", processEvent_count, processEvent_duration.count(), sai_api_duration);
 }
 
 sai_status_t Syncd::processSingleEvent(
         _In_ const swss::KeyOpFieldsValuesTuple &kco)
 {
     SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processSingleEvent start\n");
 
     auto& key = kfvKey(kco);
     auto& op = kfvOp(kco);
@@ -1006,6 +1009,7 @@ sai_status_t Syncd::processBulkQuadEvent(
         _In_ const swss::KeyOpFieldsValuesTuple &kco)
 {
     SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processBulkQuadEvent start\n");
 
     const std::string& key = kfvKey(kco); // objectType:count
 
@@ -1015,6 +1019,97 @@ sai_status_t Syncd::processBulkQuadEvent(
     sai_deserialize_object_type(strObjectType, objectType);
 
     const std::vector<swss::FieldValueTuple> &values = kfvFieldsValues(kco);
+    
+    if (SAI_OBJECT_TYPE_ROUTE_ENTRY == objectType  && SAI_COMMON_API_BULK_CREATE == api)
+    {
+        // log serialize time here because there may some other event incoming when handle this
+        auto consumer_pop_duration = std::chrono::duration_cast<std::chrono::microseconds>(m_consumer_pop_end_timestamp - m_consumer_pop_start_timestamp);
+        SWSS_LOG_ERROR("[Hua] syncd consumer_pop in ms: %ld\n", consumer_pop_duration.count());
+        m_route_event_notified_timestamp = m_consumer_pop_start_timestamp;
+
+        auto route_pre_process_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - m_consumer_pop_end_timestamp);
+        SWSS_LOG_ERROR("[Hua] syncd route_pre_process_duration in ms: %ld\n", route_pre_process_duration.count());
+        m_route_request_translate_start_timestamp = std::chrono::high_resolution_clock::now();
+        size_t bulk_start_idx = 0;
+        size_t total = values.size();
+        size_t sai_bulk_max_size = 100;
+        while (bulk_start_idx < total)
+        {
+            // calculate start/end pos of current vender_sai bulk API request
+            size_t inside_bulk_idx = 0;
+            size_t vender_sai_bulk_max = total - bulk_start_idx;
+            if (vender_sai_bulk_max > sai_bulk_max_size)
+            {
+                vender_sai_bulk_max = sai_bulk_max_size;
+            }
+
+            // prepare request data
+            std::vector<std::vector<swss::FieldValueTuple>> strAttributes;
+            std::vector<std::string> objectIds;
+            std::vector<std::shared_ptr<SaiAttributeList>> attributes;
+
+            while (inside_bulk_idx < vender_sai_bulk_max)
+            {
+                const auto &fvt = values[bulk_start_idx + inside_bulk_idx];
+                inside_bulk_idx++;
+                std::string strObjectId = fvField(fvt);
+                std::string joined = fvValue(fvt);
+
+                // decode values
+
+                auto v = swss::tokenize(joined, '|');
+
+                objectIds.push_back(strObjectId);
+
+                std::vector<swss::FieldValueTuple> entries; // attributes per object id
+
+                for (size_t i = 0; i < v.size(); ++i)
+                {
+                    const std::string item = v.at(i);
+
+                    auto start = item.find_first_of("=");
+
+                    auto field = item.substr(0, start);
+                    auto value = item.substr(start + 1);
+
+                    entries.emplace_back(field, value);
+                }
+
+                strAttributes.push_back(entries);
+
+                // since now we converted this to proper list, we can extract attributes
+
+                auto list = std::make_shared<SaiAttributeList>(objectType, entries, false);
+
+                attributes.push_back(list);
+            }
+            
+            SWSS_LOG_INFO("bulk %s executing with %zu items",
+                    strObjectType.c_str(),
+                    objectIds.size());
+
+            if (api != SAI_COMMON_API_BULK_GET)
+            {
+                // translate attributes for all objects
+
+                for (auto &list: attributes)
+                {
+                    sai_attribute_t *attr_list = list->get_attr_list();
+                    uint32_t attr_count = list->get_attr_count();
+
+                    m_translator->translateVidToRid(objectType, attr_count, attr_list);
+                }
+            }
+
+            // push vender_sai bulk request to queue
+            processBulkRouteEntry(objectType, objectIds, api, attributes, strAttributes, total, bulk_start_idx);
+
+            // move start index for next vender_sai bulk request
+            bulk_start_idx += inside_bulk_idx;
+        }
+
+        return SAI_STATUS_SUCCESS;
+    }
 
     std::vector<std::vector<swss::FieldValueTuple>> strAttributes;
 
@@ -1093,6 +1188,88 @@ sai_status_t Syncd::processBulkQuadEvent(
     }
 }
 
+sai_status_t Syncd::processBulkRouteEntry(
+        _In_ sai_object_type_t objectType,
+        _In_ const std::vector<std::string>& objectIds,
+        _In_ sai_common_api_t api,
+        _In_ const std::vector<std::shared_ptr<SaiAttributeList>>& attributes,
+        _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes,
+        _In_ const size_t total_count,
+        _In_ const size_t bulk_start_idx)
+{
+    SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processBulkRouteEntry start: %d", objectIds.size());
+
+    auto info = sai_metadata_get_object_type_info(objectType);
+
+    if (info->isobjectid)
+    {
+        SWSS_LOG_THROW("passing oid object to bulk non object id operation");
+    }
+
+    std::vector<sai_status_t> statuses(objectIds.size());
+
+    sai_status_t all = SAI_STATUS_SUCCESS;
+
+    {
+        sai_status_t status = SAI_STATUS_SUCCESS;
+
+        uint32_t object_count = (uint32_t) objectIds.size();
+
+        if (!object_count)
+        {
+            SWSS_LOG_ERROR("container with objectIds is empty in processBulkCreateEntry");
+            return SAI_STATUS_FAILURE;
+        }
+
+        sai_bulk_op_error_mode_t mode = SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR;
+
+        std::vector<uint32_t> attr_counts(object_count);
+        std::vector<const sai_attribute_t*> attr_lists(object_count);
+
+        for (uint32_t idx = 0; idx < object_count; idx++)
+        {
+            attr_counts[idx] = attributes[idx]->get_attr_count();
+            attr_lists[idx] = attributes[idx]->get_attr_list();
+        }
+
+        std::vector<sai_route_entry_t> entries(object_count);
+        for (uint32_t it = 0; it < object_count; it++)
+        {
+            sai_deserialize_route_entry(objectIds[it], entries[it]);
+
+            entries[it].switch_id = m_translator->translateVidToRid(entries[it].switch_id);
+            entries[it].vr_id = m_translator->translateVidToRid(entries[it].vr_id);
+        }
+
+        SWSS_LOG_ERROR("[Hua] push bulk route create request to queue");
+        // Hua: for route create, return immediately and send responce in another thread
+        std::lock_guard<std::mutex> lock(m_routeCreateRequestQueueMtx);
+        auto request = new BulkRouteCreateRequest();
+        request->objectIds = objectIds;
+        request->entries = entries;
+        request->attr_counts = attr_counts;
+        request->attr_lists = attr_lists;
+        request->mode = mode;
+        request->statuses = statuses;
+        request->status = status;
+        request->attributes = attributes;
+        request->strAttributes = strAttributes;
+        request->total_count = total_count;
+        request->object_count = object_count;
+        
+        auto route_request_translate_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - m_route_request_translate_start_timestamp);
+        SWSS_LOG_ERROR("[Hua] route_request_translate_duration in ms: %ld\n", route_request_translate_duration.count());
+        if (bulk_start_idx == 0)
+        {
+            SWSS_LOG_ERROR("[Hua] first route_request_translate_duration in ms: %ld\n", route_request_translate_duration.count());
+        }
+        m_routeCreateRequestQueue.push_back(request);
+        m_routeCreateRequestCV.notify_one();
+        return SAI_STATUS_SUCCESS;
+    }
+}
+
 sai_status_t Syncd::processBulkQuadEventInInitViewMode(
         _In_ sai_object_type_t objectType,
         _In_ const std::vector<std::string>& objectIds,
@@ -1101,6 +1278,7 @@ sai_status_t Syncd::processBulkQuadEventInInitViewMode(
         _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes)
 {
     SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processBulkQuadEventInInitViewMode start\n");
 
     const auto objectCount = static_cast<uint32_t>(objectIds.size());
 
@@ -1225,10 +1403,144 @@ sai_status_t Syncd::processBulkQuadEventInInitViewMode(
     }
 }
 
+
+void Syncd::batchCreateThread()
+{
+    SWSS_LOG_ERROR("[Hua] batchCreateThread start");
+    while (m_routeCreateThreadRun)
+    {
+        SWSS_LOG_ERROR("[Hua] batchCreateThread wait event");
+        size_t count = 0;
+        BulkRouteCreateRequest* createRequest = nullptr;
+        {
+            std::unique_lock<std::mutex> lock(m_routeCreateRequestQueueMtx);
+            m_routeCreateRequestCV.wait(lock, [this]{ return !this->m_routeCreateRequestQueue.empty(); });
+
+            count = m_routeCreateRequestQueue.size();
+        }
+
+        for (size_t idx = 0; idx < count; idx++)
+        {
+            auto sai_bulk_api_start = std::chrono::high_resolution_clock::now();
+            createRequest = m_routeCreateRequestQueue.front();
+            m_routeCreateRequestQueue.pop_front();
+            SWSS_LOG_ERROR("[Hua] pop bulk route create request from queue: %d", createRequest->objectIds.size());
+            createRequest->status = m_vendorSai->bulkCreate(
+                    (uint32_t) createRequest->objectIds.size(),
+                    createRequest->entries.data(),
+                    createRequest->attr_counts.data(),
+                    createRequest->attr_lists.data(),
+                    createRequest->mode,
+                    createRequest->statuses.data());
+
+            auto sai_bulk_api_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - sai_bulk_api_start);
+            SWSS_LOG_ERROR("[Hua] sai_bulk_api_duration in ms: %ld\n", sai_bulk_api_duration.count());
+
+            {
+                SWSS_LOG_ERROR("[Hua] push bulk route create request result to queue");
+                std::lock_guard<std::mutex> lock(m_routeCreateFinishQueueMtx);
+                m_routeCreateFinishQueue.push_back(createRequest);
+                m_routeCreateFinishCV.notify_one();
+            }
+        }
+    }
+}
+
+
+void Syncd::batchCreateFinishThread()
+{
+    SWSS_LOG_ERROR("[Hua] batchCreateFinishThread start");
+
+    // current request data
+    std::vector<sai_status_t> current_statuses;
+    std::vector<std::string> current_objectIds;
+    std::vector<std::vector<swss::FieldValueTuple>> current_strAttributes;
+    sai_status_t current_status;
+    uint32_t current_total_count = 0;
+
+    while (m_routeCreateFinishThreadRun)
+    {
+        SWSS_LOG_ERROR("[Hua] batchCreateFinishThread wait event");
+        BulkRouteCreateRequest* createFinishRequest = nullptr;
+        size_t count = 0;
+        {
+            std::unique_lock<std::mutex> lock(m_routeCreateFinishQueueMtx);
+            m_routeCreateFinishCV.wait(lock, [this]{ return !this->m_routeCreateFinishQueue.empty(); });
+            count = m_routeCreateFinishQueue.size();
+        }
+        
+        for (size_t idx = 0; idx < count; idx++)
+        {
+            // aggregate vender_sai API data
+            auto syncd_send_response_satrt = std::chrono::high_resolution_clock::now();
+            createFinishRequest = m_routeCreateFinishQueue.front();
+            m_routeCreateFinishQueue.pop_front();
+            SWSS_LOG_ERROR("[Hua] batchCreateFinishThread: pop bulk route create request result from queue: %d", createFinishRequest->objectIds.size());
+
+            current_statuses.insert(current_statuses.end(), createFinishRequest->statuses.begin(), createFinishRequest->statuses.end());
+            current_objectIds.insert(current_objectIds.end(), createFinishRequest->objectIds.begin(), createFinishRequest->objectIds.end());
+            current_strAttributes.insert(current_strAttributes.end(), createFinishRequest->strAttributes.begin(), createFinishRequest->strAttributes.end());
+            current_total_count += createFinishRequest->object_count;
+            bool all_vender_sai_request_finish = current_total_count == createFinishRequest->total_count;
+
+            // TODO: this may have bug, it's using last API result as all result.
+            current_status = createFinishRequest->status;
+
+            delete createFinishRequest;
+
+            if (all_vender_sai_request_finish)
+            {
+                if (current_status != SAI_STATUS_NOT_SUPPORTED
+                    && current_status != SAI_STATUS_NOT_IMPLEMENTED)
+                {
+                    SWSS_LOG_ERROR("[Hua] send bulk route create result: %d", current_objectIds.size());
+                    auto syncd_api_full_end1 = std::chrono::high_resolution_clock::now();
+                    auto syncd_api_full_duration = std::chrono::duration_cast<std::chrono::microseconds>(syncd_api_full_end1 - m_route_event_notified_timestamp);
+                    SWSS_LOG_ERROR("[Hua] syncd_api_full_duration part1 in ms: %ld\n", syncd_api_full_duration.count());
+                    sendApiResponse(
+                        SAI_COMMON_API_BULK_CREATE,
+                        current_status,
+                        (uint32_t) current_objectIds.size(),
+                        current_statuses.data());
+
+                    syncUpdateRedisBulkQuadEvent(
+                        SAI_COMMON_API_BULK_CREATE,
+                        current_statuses,
+                        SAI_OBJECT_TYPE_ROUTE_ENTRY,
+                        current_objectIds,
+                        current_strAttributes);
+                    
+                    // when orch receive reply will immediately send next request to main thread which will update m_route_event_notified_timestamp
+                    syncd_api_full_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - syncd_api_full_end1);
+                    SWSS_LOG_ERROR("[Hua] syncd_api_full_duration part2 in ms: %ld\n", syncd_api_full_duration.count());
+                }
+                else
+                {
+                    SWSS_LOG_ERROR("[Hua] batchCreateFinishThread not support bulk create: %d", current_objectIds.size());
+                }
+
+                // cleanup data when response sended
+                current_statuses.resize(0);
+                current_objectIds.resize(0);
+                current_strAttributes.resize(0);
+                current_total_count = 0;
+            }
+            else
+            {
+                SWSS_LOG_ERROR("[Hua] batchCreateFinishThread current: %ld", current_total_count);
+            }
+            auto syncd_send_response_duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - syncd_send_response_satrt);
+            SWSS_LOG_ERROR("[Hua] syncd_send_response_duration in ms: %ld\n", syncd_send_response_duration.count());
+        }
+    }
+}
+
+
 sai_status_t Syncd::processBulkCreateEntry(
         _In_ sai_object_type_t objectType,
         _In_ const std::vector<std::string>& objectIds,
         _In_ const std::vector<std::shared_ptr<SaiAttributeList>>& attributes,
+        _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes,
         _Out_ std::vector<sai_status_t>& statuses)
 {
     SWSS_LOG_ENTER();
@@ -1266,21 +1578,24 @@ sai_status_t Syncd::processBulkCreateEntry(
                 entries[it].vr_id = m_translator->translateVidToRid(entries[it].vr_id);
             }
 
-            static PerformanceIntervalTimer timer("Syncd::processBulkCreateEntry(route_entry) CREATE");
-
-            timer.start();
-
-            status = m_vendorSai->bulkCreate(
-                    object_count,
-                    entries.data(),
-                    attr_counts.data(),
-                    attr_lists.data(),
-                    mode,
-                    statuses.data());
-
-            timer.stop();
-
-            timer.inc(object_count);
+            {
+                SWSS_LOG_ERROR("[Hua] push bulk route create request to queue");
+                // Hua: for route create, return immediately and send responce in another thread
+                std::lock_guard<std::mutex> lock(m_routeCreateRequestQueueMtx);
+                auto request = new BulkRouteCreateRequest();
+                request->objectIds = objectIds;
+                request->entries = entries;
+                request->attr_counts = attr_counts;
+                request->attr_lists = attr_lists;
+                request->mode = mode;
+                request->statuses = statuses;
+                request->status = status;
+                request->attributes = attributes;
+                request->strAttributes = strAttributes;
+                m_routeCreateRequestQueue.push_back(request);
+                m_routeCreateRequestCV.notify_one();
+                return SAI_STATUS_SUCCESS;
+            }
         }
         break;
 
@@ -2117,6 +2432,115 @@ sai_status_t Syncd::processBulkSetEntry(
     return status;
 }
 
+void Syncd::bulkCreateRouteTest()
+{
+    int bulk_size = 1000;
+    int bulk_count = 2;
+    int total_count = bulk_count * bulk_size;
+
+    // test on first switch
+    auto first_switch_it = m_switches.begin();
+    if (first_switch_it == m_switches.end())
+    {
+        SWSS_LOG_ERROR("bulkCreateRouteTest: no switch avaliable");
+        return;
+    }
+
+    auto &first_switch = first_switch_it->second;
+    auto switch_vids = first_switch->getColdBootDiscoveredVids();
+    auto first_switch_vid = switch_vids.begin();
+    std::string switch_id = "";
+    if (first_switch_vid != switch_vids.end())
+    {
+        switch_id = sai_serialize_object_id(*first_switch_vid);
+        SWSS_LOG_ERROR("bulkCreateRouteTest: first_switch_vid: %s", switch_id.c_str());
+    }
+    else
+    {
+        SWSS_LOG_ERROR("bulkCreateRouteTest: no switch vid avaliable");
+        return;
+    }
+
+    // next hop is default virtual route SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID
+    sai_object_id_t default_virtual_route_id = first_switch->helperGetSwitchAttrOid(SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID);
+    std::string default_virtual_route_id_str = sai_serialize_object_id(default_virtual_route_id);
+    SWSS_LOG_ERROR("bulkCreateRouteTest: default route: %s", default_virtual_route_id_str.c_str());
+
+    // example 2025-09-15.05:44:32.268079|c|SAI_OBJECT_TYPE_ROUTE_ENTRY:{"dest":"fe80::1e34:daff:febb:8300/128","switch_id":"oid:0x21000000000000","vr":"oid:0x3000000000002"}|SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION=SAI_PACKET_ACTION_FORWARD|SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID=oid:0x1000000000001
+    // prepare data
+    std::vector<BulkRouteCreateTest> bulkCreateData(bulk_count);
+    for (int bulk_idx = 0; bulk_idx < bulk_count; bulk_idx++)
+    {
+        auto &bulk_data = bulkCreateData[bulk_idx];
+        for (uint32_t obj_idx = 0; obj_idx < bulk_size; obj_idx++)
+        {
+            int object_index_in_all_bulks = bulk_idx * bulk_size + obj_idx;
+            int ipv4_first = object_index_in_all_bulks % 255;
+            int ipv4_second = ((object_index_in_all_bulks - ipv4_first)/255) % 255;
+            int ipv4_third = ((((object_index_in_all_bulks - ipv4_first)/255) - ipv4_second)/255) %255;
+
+            std::string strObjectId = "{\"dest\":\"";
+            strObjectId += "1." + std::to_string(ipv4_first) + "." + std::to_string(ipv4_second) + "." + std::to_string(ipv4_third) + "/32";
+            strObjectId += "\",\"switch_id\":\"";
+            strObjectId += switch_id;
+            strObjectId += "\",\"vr\":\"";
+            strObjectId += default_virtual_route_id_str;
+            strObjectId += "\"}";
+            bulk_data.objectIds.push_back(strObjectId);
+            
+            SWSS_LOG_ERROR("bulkCreateRouteTest: object ID: %s", strObjectId.c_str());
+
+            sai_route_entry_t tmp_entry;
+            sai_deserialize_route_entry(strObjectId, tmp_entry);
+
+            tmp_entry.switch_id = m_translator->translateVidToRid(tmp_entry.switch_id);
+            tmp_entry.vr_id = m_translator->translateVidToRid(tmp_entry.vr_id);
+            bulk_data.entries.push_back(tmp_entry);
+
+            sai_status_t tmp_status;
+            bulk_data.statuses.push_back(tmp_status);
+
+            // ref:  https://github.com/sonic-net/sonic-sairedis/blob/master/meta/SaiAttributeList.cpp
+            std::vector<sai_attribute_t> tmp_attrs;
+
+            sai_attribute_t tmp_attr_action;
+            sai_deserialize_attr_id("SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION", tmp_attr_action.id);
+            auto action_meta = sai_metadata_get_attr_metadata(SAI_OBJECT_TYPE_ROUTE_ENTRY, tmp_attr_action.id);
+            sai_deserialize_attr_value("SAI_PACKET_ACTION_FORWARD", *action_meta, tmp_attr_action, false);
+            tmp_attrs.push_back(tmp_attr_action);
+
+            sai_attribute_t tmp_attr_next_hop;
+            sai_deserialize_attr_id("SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID", tmp_attr_next_hop.id);
+            auto next_hop_meta = sai_metadata_get_attr_metadata(SAI_OBJECT_TYPE_ROUTE_ENTRY, tmp_attr_next_hop.id);
+            sai_deserialize_attr_value("oid:0x1000000000001", *next_hop_meta, tmp_attr_next_hop, false);
+            tmp_attrs.push_back(tmp_attr_next_hop);
+
+            bulk_data.attr_vector_lists.push_back(tmp_attrs);
+            bulk_data.attr_counts.push_back(bulk_data.attr_vector_lists[obj_idx].size());
+            bulk_data.attr_lists.push_back(bulk_data.attr_vector_lists[obj_idx].data());
+        }
+    }
+    
+
+    // bulk create
+    m_vendorSai->resetApiDuration();
+    sai_bulk_op_error_mode_t mode = SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR;
+    for (int bulk_idx = 0; bulk_idx < bulk_count; bulk_idx++)
+    {
+        auto &bulk_data = bulkCreateData[bulk_idx];
+        bulk_data.bulk_status = m_vendorSai->bulkCreate(
+                bulk_size,
+                bulk_data.entries.data(),
+                bulk_data.attr_counts.data(),
+                bulk_data.attr_lists.data(),
+                mode,
+                bulk_data.statuses.data());
+    }
+
+    auto sai_api_duration = m_vendorSai->getApiDuration();
+    SWSS_LOG_WARN("bulkCreateRouteTest count: %d, sai_api_duration in ms: %ld\n", total_count, sai_api_duration);
+}
+
 sai_status_t Syncd::processBulkEntry(
         _In_ sai_object_type_t objectType,
         _In_ const std::vector<std::string>& objectIds,
@@ -2125,6 +2549,7 @@ sai_status_t Syncd::processBulkEntry(
         _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes)
 {
     SWSS_LOG_ENTER();
+    SWSS_LOG_NOTICE("processBulkEntry start\n");
 
     auto info = sai_metadata_get_object_type_info(objectType);
 
@@ -2142,7 +2567,7 @@ sai_status_t Syncd::processBulkEntry(
         switch (api)
         {
             case SAI_COMMON_API_BULK_CREATE:
-                all = processBulkCreateEntry(objectType, objectIds, attributes, statuses);
+                all = processBulkCreateEntry(objectType, objectIds, attributes, strAttributes, statuses);
                 break;
 
             case SAI_COMMON_API_BULK_REMOVE:
@@ -5776,6 +6201,7 @@ void Syncd::run()
     }
 
     m_timerWatchdog.setCallback(timerWatchdogCallback);
+    SWSS_LOG_NOTICE("runMainLoop start\n");
 
     while (runMainLoop)
     {

@@ -4,6 +4,7 @@
 #include "Syncd.h"
 #include "MetadataLogger.h"
 #include "PortMapParser.h"
+#include <signal.h>
 
 #include "swss/warm_restart.h"
 
@@ -18,6 +19,13 @@
 #endif // SAITHRIFT
 
 using namespace syncd;
+
+std::shared_ptr<syncd::Syncd> gSyncd;
+void test_handler(int signo)
+{
+    //gSyncd->m_bulkCreateRouteTest = true;
+}
+
 
 /*
  * Make sure that notification queue pointer is populated before we start
@@ -67,6 +75,12 @@ int syncd_main(int argc, char **argv)
     auto vendorSai = std::make_shared<VendorSai>();
 
     auto syncd = std::make_shared<Syncd>(vendorSai, commandLineOptions, isWarmStart);
+
+    gSyncd = syncd;
+    if (signal(SIGWINCH, test_handler) == SIG_ERR)
+    {
+        SWSS_LOG_ERROR("failed to setup SIGWINCH action");
+    }
 
     syncd->run();
 

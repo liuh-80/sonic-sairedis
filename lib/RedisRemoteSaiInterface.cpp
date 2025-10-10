@@ -1735,6 +1735,7 @@ sai_status_t RedisRemoteSaiInterface::bulkRemove(
 
     m_communicationChannel->set(key, entries, REDIS_ASIC_STATE_COMMAND_BULK_REMOVE);
 
+    SWSS_LOG_ERROR("[Hua] bulkRemove waitForBulkResponse for type: %s, count: %ld\n", serializedObjectType.c_str(), serialized_object_ids.size());
     return waitForBulkResponse(SAI_COMMON_API_BULK_REMOVE, (uint32_t)serialized_object_ids.size(), object_statuses);
 }
 
@@ -1930,6 +1931,7 @@ sai_status_t RedisRemoteSaiInterface::bulkSet(
 
     m_communicationChannel->set(key, entries, REDIS_ASIC_STATE_COMMAND_BULK_SET);
 
+    SWSS_LOG_ERROR("[Hua] bulkSet waitForBulkResponse for type: %s, count: %ld\n", serializedObjectType.c_str(), serialized_object_ids.size());
     return waitForBulkResponse(SAI_COMMON_API_BULK_SET, (uint32_t)serialized_object_ids.size(), object_statuses);
 }
 
@@ -2103,6 +2105,15 @@ sai_status_t RedisRemoteSaiInterface::bulkCreate(
 
     m_communicationChannel->set(key, entries, REDIS_ASIC_STATE_COMMAND_BULK_CREATE);
 
+    /*
+    if (object_type == SAI_OBJECT_TYPE_ROUTE_ENTRY)
+    {
+        SWSS_LOG_ERROR("[Hua] return success for bulk route create operation: %ld\n", entries.size());
+        return SAI_STATUS_SUCCESS;
+    }
+    */
+
+    SWSS_LOG_ERROR("[Hua] bulkCreate waitForBulkResponse for type: %s, count: %ld\n", str_object_type.c_str(), serialized_object_ids.size());
     return waitForBulkResponse(SAI_COMMON_API_BULK_CREATE, (uint32_t)serialized_object_ids.size(), object_statuses);
 }
 

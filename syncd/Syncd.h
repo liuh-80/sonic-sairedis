@@ -27,9 +27,29 @@
 #include "swss/notificationconsumer.h"
 
 #include <memory>
+#include <queue>
+#include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <chrono>
 
 namespace syncd
 {
+    struct BulkRouteCreateRequest
+    {
+        uint32_t object_count;
+        std::vector<std::string> objectIds;
+        std::vector<sai_route_entry_t> entries;
+        std::vector<uint32_t> attr_counts;
+        std::vector<const sai_attribute_t*> attr_lists;
+        sai_bulk_op_error_mode_t mode;
+        std::vector<sai_status_t> statuses;
+        std::vector<std::shared_ptr<saimeta::SaiAttributeList>> attributes;
+        std::vector<std::vector<swss::FieldValueTuple>> strAttributes;
+        sai_status_t status;
+        uint32_t total_count;
+    };
+
     class Syncd
     {
         private:
@@ -173,10 +193,20 @@ namespace syncd
                     _In_ const std::vector<std::shared_ptr<saimeta::SaiAttributeList>> &attributes,
                     _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes);
 
+            sai_status_t processBulkRouteEntry(
+                    _In_ sai_object_type_t objectType,
+                    _In_ const std::vector<std::string> &object_ids,
+                    _In_ sai_common_api_t api,
+                    _In_ const std::vector<std::shared_ptr<saimeta::SaiAttributeList>> &attributes,
+                    _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes,
+                    _In_ const size_t total_count,
+                    _In_ const size_t bulk_start_idx);
+
             sai_status_t processBulkCreateEntry(
                     _In_ sai_object_type_t objectType,
                     _In_ const std::vector<std::string>& objectIds,
                     _In_ const std::vector<std::shared_ptr<saimeta::SaiAttributeList>>& attributes,
+                    _In_ const std::vector<std::vector<swss::FieldValueTuple>>& strAttributes,
                     _Out_ std::vector<sai_status_t>& statuses);
 
             sai_status_t processBulkRemoveEntry(
@@ -388,6 +418,8 @@ namespace syncd
             void sendNotifyResponse(
                     _In_ sai_status_t status);
 
+            void bulkCreateRouteTest();
+
         private: // snoop get response oids
 
             void snoopGetResponse(
@@ -489,6 +521,8 @@ namespace syncd
 
             bool m_enableSyncMode;
 
+            bool m_bulkCreateRouteTest;
+
         private:
 
             /**
@@ -540,5 +574,35 @@ namespace syncd
             TimerWatchdog m_timerWatchdog;
 
             std::set<sai_object_id_t> m_createdInInitView;
+
+            std::list<BulkRouteCreateRequest*> m_routeCreateRequestQueue;
+            std::mutex m_routeCreateRequestQueueMtx;
+            std::shared_ptr<std::thread> m_routeCreateThread;
+            bool m_routeCreateThreadRun;
+            std::condition_variable m_routeCreateRequestCV;
+            void batchCreateThread();
+
+            std::list<BulkRouteCreateRequest*> m_routeCreateFinishQueue;
+            std::mutex m_routeCreateFinishQueueMtx;
+            std::shared_ptr<std::thread> m_routeCreateFinishThread;
+            bool m_routeCreateFinishThreadRun;
+            std::condition_variable m_routeCreateFinishCV;
+            void batchCreateFinishThread();
+
+            std::chrono::high_resolution_clock::time_point m_route_request_translate_start_timestamp;
+            std::chrono::high_resolution_clock::time_point m_route_event_notified_timestamp;
+            std::chrono::high_resolution_clock::time_point m_consumer_pop_start_timestamp;
+            std::chrono::high_resolution_clock::time_point m_consumer_pop_end_timestamp;
+    };
+
+    struct BulkRouteCreateTest
+    {
+        std::vector<std::string> objectIds;
+        std::vector<sai_route_entry_t> entries;
+        std::vector<uint32_t> attr_counts;
+        std::vector<const sai_attribute_t*> attr_lists;
+        std::vector<sai_status_t> statuses;
+        sai_status_t bulk_status;
+        std::vector<std::vector<sai_attribute_t>> attr_vector_lists;
     };
 }

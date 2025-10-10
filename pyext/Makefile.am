@@ -1,6 +1,3 @@
 SUBDIRS = py3
-if PYTHON2
-SUBDIRS += py2
-endif
 
 ACLOCAL_AMFLAGS = -I m4

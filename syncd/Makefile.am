@@ -8,11 +8,11 @@ else
 SAILIB=-lsai
 endif
 
-bin_PROGRAMS = syncd syncd_request_shutdown syncd_tests
+bin_PROGRAMS = syncd syncd_request_shutdown syncd_tests syncd_prof
 
 lib_LTLIBRARIES = libMdioIpcClient.la
 
-noinst_LIBRARIES = libSyncd.a libSyncdRequestShutdown.a libMdioIpcClient.a
+noinst_LIBRARIES = libSyncd.a libSyncdRequestShutdown.a libMdioIpcClient.a libSyncd_prof.a
 
 libSyncd_a_SOURCES = \
 				AsicOperation.cpp \
@@ -59,28 +59,90 @@ libSyncd_a_SOURCES = \
 				ZeroMQNotificationProducer.cpp \
 				syncd_main.cpp
 
+libSyncd_prof_a_SOURCES = \
+				AsicOperation.cpp \
+				AsicView.cpp \
+				AttrVersionChecker.cpp \
+				BestCandidateFinder.cpp \
+				BreakConfig.cpp \
+				BreakConfigParser.cpp \
+				CommandLineOptions.cpp \
+				CommandLineOptionsParser.cpp \
+				ComparisonLogic.cpp \
+				FlexCounter.cpp \
+				FlexCounterManager.cpp \
+				GlobalSwitchId.cpp \
+				HardReiniter.cpp \
+				MdioIpcServer.cpp \
+				MetadataLogger.cpp \
+				NotificationHandler.cpp \
+				NotificationProcessor.cpp \
+				NotificationQueue.cpp \
+				PortMap.cpp \
+				PortMapParser.cpp \
+				PortStateChangeHandler.cpp \
+				RedisClient.cpp \
+				RedisNotificationProducer.cpp \
+				RequestShutdownCommandLineOptions.cpp \
+				SaiAttr.cpp \
+				SaiDiscovery.cpp \
+				SaiObj.cpp \
+				SaiSwitch.cpp \
+				SaiSwitchInterface.cpp \
+				ServiceMethodTable.cpp \
+				SingleReiniter.cpp \
+				SwitchNotifications.cpp \
+				Syncd.cpp \
+				TimerWatchdog.cpp \
+				VendorSai.cpp \
+				VidManager.cpp \
+				VidManager.cpp \
+				VirtualOidTranslator.cpp \
+				WarmRestartTable.cpp \
+				WatchdogScope.cpp \
+				Workaround.cpp \
+				ZeroMQNotificationProducer.cpp \
+				syncd_main.cpp
+
 libSyncd_a_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS)
-libSyncd_a_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS_COMMON) $(CODE_COVERAGE_CXXFLAGS)
+libSyncd_a_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) -std=c++14 $(CODE_COVERAGE_CXXFLAGS)
+
+libSyncd_prof_a_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS) -pg 
+libSyncd_prof_a_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) -std=c++14   $(CODE_COVERAGE_CXXFLAGS) -pg 
 
 syncd_SOURCES = main.cpp
+syncd_prof_SOURCES = main.cpp
 if ASAN_ENABLED
 syncd_SOURCES += Asan.cpp
+syncd_prof_SOURCES += Asan.cpp
 libSyncd_a_CXXFLAGS += -DASAN_ENABLED
+libSyncd_prof_a_CXXFLAGS += -DASAN_ENABLED
 endif
 syncd_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS)
-syncd_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS_COMMON) $(CODE_COVERAGE_CXXFLAGS) $(CFLAGS_ASAN)
+syncd_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) -std=c++14  -Wall  $(CODE_COVERAGE_CXXFLAGS) $(CFLAGS_ASAN)
 syncd_LDADD = libSyncd.a $(top_srcdir)/lib/libSaiRedis.a -L$(top_srcdir)/meta/.libs -lsaimetadata -lsaimeta \
 			  -ldl -lhiredis -lswsscommon $(SAILIB) -lpthread -lzmq $(CODE_COVERAGE_LIBS) $(EXTRA_LIBSAI_LDFLAGS)
 syncd_LDFLAGS = $(LDFLAGS_ASAN) -rdynamic
+
+syncd_prof_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS) -pg 
+syncd_prof_CXXFLAGS = $(DBGFLAGS) $(AM_CXXFLAGS) -std=c++14  -Wall  $(CODE_COVERAGE_CXXFLAGS) $(CFLAGS_ASAN) -pg 
+syncd_prof_LDADD = libSyncd_prof.a $(top_srcdir)/lib/libSaiRedis.a -L$(top_srcdir)/meta/.libs -lsaimetadata -lsaimeta \
+			  -ldl -lhiredis -lswsscommon $(SAILIB) -lpthread -lzmq $(CODE_COVERAGE_LIBS) $(EXTRA_LIBSAI_LDFLAGS)
+syncd_prof_LDFLAGS = $(LDFLAGS_ASAN) -rdynamic -pg 
 
 if SAITHRIFT
 libSyncd_a_CXXFLAGS += -DSAITHRIFT=yes
 syncd_CXXFLAGS += -DSAITHRIFT=yes
 syncd_LDADD += -lrpcserver -lthrift
+libSyncd_prof_a_CXXFLAGS += -DSAITHRIFT=yes
+syncd_prof_CXXFLAGS += -DSAITHRIFT=yes
+syncd_prof_LDADD += -lrpcserver -lthrift
 endif
+
 
 if SONIC_ASIC_PLATFORM_BROADCOM
 libSyncd_a_CXXFLAGS += -DMDIO_ACCESS_USE_NPU
+libSyncd_prof_a_CXXFLAGS += -DMDIO_ACCESS_USE_NPU
 endif
 
 libSyncdRequestShutdown_a_SOURCES = \

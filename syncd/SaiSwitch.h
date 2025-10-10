@@ -210,6 +210,8 @@ namespace syncd
             virtual void collectPortRelatedObjects(
                     _In_ sai_object_id_t portRid) override;
 
+            sai_object_id_t helperGetSwitchAttrOid(
+                    _In_ sai_attr_id_t attr_id);
         private:
 
             /*
@@ -257,7 +259,6 @@ namespace syncd
              */
             void saiGetVxlanDefaultRouterMacAddress(
                     _Out_ sai_mac_t &mac) const;
-
         private:
 
             void redisSetDummyAsicStateForRealObjectId(
@@ -291,8 +292,6 @@ namespace syncd
 
             void helperCheckLaneMap();
 
-            sai_object_id_t helperGetSwitchAttrOid(
-                    _In_ sai_attr_id_t attr_id);
 
             /**
              * @brief Discover helper.
